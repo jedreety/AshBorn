@@ -9,6 +9,7 @@ end
 
 -- Workspace configuration
 workspace "AshBorn"
+    location ("../../")
     architecture "x86_64"
     startproject "Game"
     
@@ -20,7 +21,7 @@ workspace "AshBorn"
     
     flags {
         "MultiProcessorCompile",
-        "FatalWarnings"  -- Treat warnings as errors for code quality
+        "fatalwarnings"  -- Treat warnings as errors for code quality
     }
     
     -- C++23 for modern features
@@ -84,7 +85,7 @@ filter "configurations:Dist"
     symbols "Off"
     
     -- Strip all debug features
-    flags { "LinkTimeOptimization" }
+    flags { "linktimeoptimization" }
 
 -- Reset filters
 filter {}
@@ -102,16 +103,18 @@ IncludeDir["gem"] = GetDependencyPath("gem/include")
 
 -- Library directories
 LibraryDir = {}
-LibraryDir["enet"] = GetDependencyPath("enet/src")
-LibraryDir["glfw"] = GetDependencyPath("glfw/src")
-LibraryDir["imgui"] = GetDependencyPath("imgui/src")
+LibraryDir["enet"] = GetDependencyPath("enet/src/enet")
+LibraryDir["glfw"] = GetDependencyPath("glfw/src/glfw3")
+LibraryDir["imgui"] = GetDependencyPath("imgui/src/imgui")
+LibraryDir["vulkan"] = GetDependencyPath("glad/src/vulkan-1")
+
 
 -- Groups for project organization    
 group "Engine"
-    include "Source/Engine/Build-Engine.lua"
+    include "../../Source/Engine/Build-Engine.lua"
     
--- group "Game" 
-    -- include "Source/Game/Build-Game.lua"
+group "Game" 
+    include "../../Source/Game/Build-Game.lua"
     
 -- group "Tools"
     -- include "Source/ModAPI/Build-ModAPI.lua"

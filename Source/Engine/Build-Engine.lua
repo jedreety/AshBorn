@@ -2,8 +2,10 @@
 -- Build configuration for AshBorn core engine
 
 project "Engine"
+    location( _SCRIPT_DIR )
+    targetdir "../../Build/%{cfg.buildcfg}"
     kind "StaticLib"
-    language "C++	"
+    language "C++"
     staticruntime "Off"  -- Important for mod compatibility
     
     -- Precompiled header for build performance
@@ -100,20 +102,21 @@ project "Engine"
         
     -- Link dependencies (for static lib, these propagate to consumers)
     links {
-        "GLFW",
-        "ImGui",
-	"enet"
+        "%{LibraryDir.enet}",
+        "%{LibraryDir.glfw}",
+	"%{LibraryDir.imgui}"
     }
     
     -- Platform-specific libraries
     filter "system:windows"
         links {
-            "vulkan-1"
-        }
-        
-        libdirs {
             "%{LibraryDir.vulkan}"
+	
         }
+        libdirs {
+            "$(VULKAN_SDK)/Lib"          -- Where vulkan-1.lib lives
+        }
+
         
     filter "system:linux"
         links {

@@ -1,6 +1,3 @@
-#include <windows.h>
-#include <sal.h> // Ajoute les annotations SAL
-
 #include <Core/Logger/log.h>
 #include <thread>
 #include <chrono>
@@ -8,7 +5,6 @@
 
 int  main()
 {
-
     // ==========================================
     // 1. INITIALIZATION
     // ==========================================
@@ -39,7 +35,7 @@ int  main()
     print_e("This is an error message");
     print_c("This is a critical message - something is very wrong!");
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Let messages print
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // ==========================================
     // 3. LOGGING WITH CONTEXT DATA
@@ -48,20 +44,20 @@ int  main()
     std::cout << "\n--- Logging with Context ---\n";
 
     // Add context data to your logs
-    print_i("User logged in", {
+    print_i("User logged in", AshCore::LogContext{
         {"user_id", 12345},
         {"username", "AshCore"},
         {"ip_address", "192.168.1.100"},
         {"login_time", "2024-01-15 10:30:00"}
         });
 
-    print_w("Memory usage high", {
+    print_w("Memory usage high", AshCore::LogContext{
         {"used_mb", 3800},
         {"total_mb", 4096},
         {"percentage", 92.7}
         });
 
-    print_e("Failed to load texture", {
+    print_e("Failed to load texture", AshCore::LogContext{
         {"file", "assets/textures/stone.png"},
         {"error_code", 404},
         {"attempted_retries", 3}
@@ -69,9 +65,31 @@ int  main()
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-   
     // ==========================================
-    // 6. RUNTIME CONFIGURATION
+    // 4. NEW FORMAT SUPPORT
+    // ==========================================
+
+    std::cout << "\n--- Format Support Examples ---\n";
+
+    // Simple formatting
+    int player_health = 75;
+    float player_speed = 5.5f;
+    print_i("Player stats: health={}, speed={:.2f}", player_health, player_speed);
+
+    // Multiple variables
+    std::string player_name = "AshBorn";
+    int level = 42;
+    print_i("Player {} reached level {}", player_name, level);
+
+    // Format with context
+    int chunk_x = 16, chunk_z = 32;
+    print_i("Loading chunk [{}, {}]", chunk_x, chunk_z, AshCore::LogContext{
+        {"faces", 15234},
+        {"biome", "forest"}
+        });
+
+    // ==========================================
+    // 5. RUNTIME CONFIGURATION
     // ==========================================
 
     std::cout << "\n--- Runtime Configuration ---\n";
@@ -92,17 +110,17 @@ int  main()
     print_e("This error will show");
 
     // Reset to Trace for rest of demo
-    auto r = AshCore::Logger::set_min_level(AshCore::LogLevel::Trace);
+    [[maybe_unused]] auto reset_result = AshCore::Logger::set_min_level(AshCore::LogLevel::Trace);
 
     // ==========================================
-    // 7. PERFORMANCE MONITORING
+    // 6. PERFORMANCE MONITORING
     // ==========================================
 
     std::cout << "\n--- Performance Monitoring ---\n";
 
     // Get current statistics
     auto stats = AshCore::Logger::get_stats();
-    print_i("Logger Statistics", {
+    print_i("Logger Statistics", AshCore::LogContext{
         {"messages_logged", static_cast<int>(stats.messages_logged)},
         {"messages_dropped", static_cast<int>(stats.messages_dropped)},
         {"handlers_active", static_cast<int>(stats.handlers_active)},
@@ -110,7 +128,7 @@ int  main()
         });
 
     // ==========================================
-    // 8. BENCHMARKING
+    // 7. BENCHMARKING
     // ==========================================
 
     std::cout << "\n--- Benchmarking ---\n";
@@ -119,7 +137,7 @@ int  main()
 
     auto bench_result = AshCore::Logger::benchmark(10000);
     if (bench_result) {
-        print_s("Benchmark completed", {
+        print_s("Benchmark completed", AshCore::LogContext{
             {"messages_per_second", bench_result->messages_per_second},
             {"avg_latency_ns", bench_result->avg_latency.count()},
             {"min_latency_ns", bench_result->min_latency.count()},
@@ -128,100 +146,43 @@ int  main()
     }
 
     // ==========================================
-    // 9. ADVANCED FEATURES
-    // ==========================================
-
-    std::cout << "\n--- Advanced Features ---\n";
-
-    // Configure queue behavior
-    auto re = AshCore::Logger::set_queue_size(16384);  // Increase queue size
-    auto res = AshCore::Logger::set_overflow_policy(true);  // Drop messages if queue full
-
-    print_i("Queue configured for high-throughput");
-
-    // Flush all pending logs
-    auto flush_result = AshCore::Logger::flush();
-    if (flush_result) {
-        print_s("All logs flushed to disk");
-    }
-
-    // Check file size
-    auto size_result = AshCore::Logger::get_file_size("game_log");
-    if (size_result) {
-        print_i("Log file size", { {"bytes", static_cast<int>(*size_result)} });
-    }
-
-    // ==========================================
-    // 10. SIMULATING GAME SCENARIOS
+    // 8. GAME SCENARIOS WITH FORMAT
     // ==========================================
 
     std::cout << "\n--- Game Scenario Logging ---\n";
 
-    // Simulate game initialization
-    print_i("Initializing game engine...");
-    print_d("Loading configuration from config.json");
-    print_s("Configuration loaded successfully");
-
-    print_i("Initializing Vulkan renderer...");
-    print_d("Selected GPU: NVIDIA RTX 3050 Ti");
-    print_d("Vulkan version: 1.3.275");
-    print_s("Vulkan initialized successfully");
-
-    // Simulate chunk loading
+    // Simulate chunk loading with format
     for (int i = 0; i < 3; ++i) {
-        print_t("Loading chunk", {
-            {"chunk_x", i * 32},
-            {"chunk_z", 0},
-            {"faces", 15234 + i * 1000}
-            });
+        print_t("Loading chunk at [{}, {}] with {} faces",
+            i * 32, 0, 15234 + i * 1000);
     }
 
-    // Simulate player actions
-    print_i("Player spawned", {
-        {"position_x", 128.5},
-        {"position_y", 64.0},
-        {"position_z", 256.5},
-        {"health", 100},
-        {"world", "overworld"}
-        });
+    // Combat with formatting
+    std::string enemy = "Corrupted Villager";
+    int damage = 25;
+    print_i("{} dealt {} damage to {}", player_name, damage, enemy);
 
-    // Simulate combat
-    print_i("Combat started", { {"enemy", "Corrupted Villager"} });
-    print_d("Calculating damage", { {"base_damage", 10}, {"armor", 5} });
-    print_w("Player health low", { {"health", 20} });
-    print_c("Player died", { {"killer", "Corrupted Villager"}, {"death_count", 1} });
-
-    // Simulate error scenarios
-    print_e("Failed to save game", {
-        {"error", "Disk full"},
-        {"save_path", "saves/world1.dat"},
-        {"required_space_mb", 50},
-        {"available_space_mb", 10}
-        });
+    // Error with format
+    print_e("Failed to save game to '{}': {} MB required, {} MB available",
+        "saves/world1.dat", 50, 10);
 
     // ==========================================
-    // 11. MULTI-THREADED LOGGING
+    // 9. MULTI-THREADED LOGGING WITH FORMAT
     // ==========================================
 
     std::cout << "\n--- Multi-threaded Logging ---\n";
 
-    // Create multiple threads that log simultaneously
     std::vector<std::thread> threads;
-
     for (int i = 0; i < 4; ++i) {
         threads.emplace_back([i]() {
             for (int j = 0; j < 5; ++j) {
-                print_i("Thread message", {
-                    {"thread_id", i},
-                    {"message_num", j},
-                    {"timestamp", std::chrono::system_clock::now().time_since_epoch().count()}
-                    });
+                print_i("Thread {} message {}", i, j);
                 std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
             });
     }
 
-    // Wait for all threads to complete
+    // Wait for all threads
     for (auto& t : threads) {
         t.join();
     }
@@ -229,7 +190,7 @@ int  main()
     print_s("Multi-threaded logging test completed");
 
     // ==========================================
-    // 12. CLEANUP
+    // 10. CLEANUP
     // ==========================================
 
     std::cout << "\n--- Cleanup ---\n";
@@ -238,16 +199,10 @@ int  main()
     stats = AshCore::Logger::get_stats();
     std::cout << "Final message count: " << stats.messages_logged << "\n";
 
-    // Remove specific handler
-    auto remove_result = AshCore::Logger::remove_handler("json_log");
-    if (remove_result) {
-        print_i("Removed JSON handler");
-    }
-
     // Flush everything before shutdown
-    auto resu = AshCore::Logger::flush();
+    [[maybe_unused]] auto flush_result = AshCore::Logger::flush();
 
-    // Shutdown the logger (optional - will happen automatically)
+    // Shutdown the logger
     auto shutdown_result = AshCore::Logger::shutdown();
     if (shutdown_result) {
         std::cout << "Logger shutdown successfully\n";

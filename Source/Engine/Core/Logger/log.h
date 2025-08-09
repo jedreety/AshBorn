@@ -9,6 +9,10 @@
 #include <any>
 #include <unordered_map>
 #include <source_location>
+#include <format>
+#include <string>
+#include <type_traits>
+#include <concepts>
 
 namespace AshCore {
 
@@ -19,9 +23,9 @@ namespace AshCore {
         NotInitialized,
         HandlerCreationFailed,
         HandlerNotFound,
-		HandlerRemovalFailed,
+        HandlerRemovalFailed,
         FileCreationFailed,
-		FileFlushFailed,
+        FileFlushFailed,
         InvalidConfiguration,
         QueueFull,
         Unknown
@@ -90,7 +94,7 @@ namespace AshCore {
         [[nodiscard]] std::expected<void, LogError> flush() noexcept;
         [[nodiscard]] std::expected<void, LogError> flush_handler(std::string_view handler) noexcept;
 
-        // Core logging functions (with context support)
+        // Original core logging functions (backward compatibility)
         void trace(std::string_view msg, const LogContext& ctx = {}, std::source_location loc = std::source_location::current()) noexcept;
         void debug(std::string_view msg, const LogContext& ctx = {}, std::source_location loc = std::source_location::current()) noexcept;
         void info(std::string_view msg, const LogContext& ctx = {}, std::source_location loc = std::source_location::current()) noexcept;
@@ -98,6 +102,197 @@ namespace AshCore {
         void warning(std::string_view msg, const LogContext& ctx = {}, std::source_location loc = std::source_location::current()) noexcept;
         void error(std::string_view msg, const LogContext& ctx = {}, std::source_location loc = std::source_location::current()) noexcept;
         void critical(std::string_view msg, const LogContext& ctx = {}, std::source_location loc = std::source_location::current()) noexcept;
+
+        // Internal namespace for implementation details
+        namespace detail {
+            // Helper to check if a type is LogContext
+            template<typename T>
+            constexpr bool is_log_context_v = std::is_same_v<std::remove_cvref_t<T>, LogContext>;
+
+            // Base case: no arguments
+            template<typename... Args>
+            struct last_arg_helper {
+                static constexpr bool is_context = false;
+                using type = void;
+            };
+
+            // Recursive case: extract last argument type
+            template<typename T>
+            struct last_arg_helper<T> {
+                static constexpr bool is_context = is_log_context_v<T>;
+                using type = T;
+            };
+
+            template<typename T, typename... Rest>
+            struct last_arg_helper<T, Rest...> : last_arg_helper<Rest...> {};
+
+            // Helper to get the last argument if it's a context
+            template<typename... Args>
+            LogContext get_context_if_present(Args&&... args [[maybe_unused]] ) {
+                if constexpr (sizeof...(Args) == 0) {
+                    return {};
+                }
+                else if constexpr (last_arg_helper<Args...>::is_context) {
+                    return std::get<sizeof...(Args) - 1>(std::forward_as_tuple(args...));
+                }
+                else {
+                    return {};
+                }
+            }
+
+            // Format message without the context parameter
+            template<typename... Args>
+            std::string format_message(std::string_view fmt, Args&&... args) {
+                if constexpr (sizeof...(Args) == 0) {
+                    return std::string(fmt);
+                }
+                else if constexpr (last_arg_helper<Args...>::is_context) {
+                    // Last arg is context, exclude it from formatting
+                    if constexpr (sizeof...(Args) == 1) {
+                        // Only context, no format args
+                        return std::string(fmt);
+                    }
+                    else {
+                        // Format without the last argument
+                        return[&fmt]<std::size_t... Is>(std::index_sequence<Is...>, auto&& tuple) {
+                            return std::vformat(fmt, std::make_format_args(std::get<Is>(tuple)...));
+                        }(std::make_index_sequence<sizeof...(Args) - 1>{}, std::forward_as_tuple(args...));
+                    }
+                }
+                else {
+                    // No context, use all args for formatting
+                    return std::vformat(fmt, std::make_format_args(args...));
+                }
+            }
+        }
+
+        // Formatted logging functions - handle both simple strings and format strings
+        template<typename... Args>
+        void trace_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    trace(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    // Single argument that is a context
+                    trace(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    trace(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
+
+        template<typename... Args>
+        void debug_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    debug(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    debug(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    debug(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
+
+        template<typename... Args>
+        void info_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    info(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    info(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    info(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
+
+        template<typename... Args>
+        void success_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    success(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    success(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    success(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
+
+        template<typename... Args>
+        void warning_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    warning(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    warning(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    warning(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
+
+        template<typename... Args>
+        void error_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    error(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    error(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    error(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
+
+        template<typename... Args>
+        void critical_fmt(std::string_view fmt, Args&&... args) noexcept {
+            try {
+                if constexpr (sizeof...(Args) == 0) {
+                    critical(fmt);
+                }
+                else if constexpr (sizeof...(Args) == 1 && detail::last_arg_helper<Args...>::is_context) {
+                    critical(fmt, detail::get_context_if_present(args...));
+                }
+                else {
+                    auto formatted = detail::format_message(fmt, args...);
+                    auto ctx = detail::get_context_if_present(args...);
+                    critical(formatted, ctx);
+                }
+            }
+            catch (...) {}
+        }
 
         // Utility functions
         [[nodiscard]] std::expected<void, LogError> rotate_file(std::string_view handler) noexcept;
@@ -120,50 +315,51 @@ namespace AshCore {
 
 } // namespace AshCore
 
-// Macro definitions based on build configuration
+// ============================================================================
+// MACRO DEFINITIONS
+// ============================================================================
 
-// Helper macro for context support
-#define ASHBORN_LOG_CTX(...) __VA_OPT__(, __VA_ARGS__)
-
-// Debug build - all macros active
+// Debug build - all macros active with format support
 #if defined(ASHBORN_DEBUG) || defined(_DEBUG)
-#define print_t(msg, ...) ::AshCore::Logger::trace(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_d(msg, ...) ::AshCore::Logger::debug(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_i(msg, ...) ::AshCore::Logger::info(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_s(msg, ...) ::AshCore::Logger::success(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_w(msg, ...) ::AshCore::Logger::warning(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_e(msg, ...) ::AshCore::Logger::error(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_c(msg, ...) ::AshCore::Logger::critical(msg ASHBORN_LOG_CTX(__VA_ARGS__))
+
+// Simple versions (backward compatible)
+#define print_t(...) ::AshCore::Logger::trace_fmt(__VA_ARGS__)
+#define print_d(...) ::AshCore::Logger::debug_fmt(__VA_ARGS__)
+#define print_i(...) ::AshCore::Logger::info_fmt(__VA_ARGS__)
+#define print_s(...) ::AshCore::Logger::success_fmt(__VA_ARGS__)
+#define print_w(...) ::AshCore::Logger::warning_fmt(__VA_ARGS__)
+#define print_e(...) ::AshCore::Logger::error_fmt(__VA_ARGS__)
+#define print_c(...) ::AshCore::Logger::critical_fmt(__VA_ARGS__)
 
 // Release build - skip trace and debug
 #elif defined(ASHBORN_RELEASE) || defined(NDEBUG)
-#define print_t(msg, ...) ((void)0)
-#define print_d(msg, ...) ((void)0)
-#define print_i(msg, ...) ::AshCore::Logger::info(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_s(msg, ...) ::AshCore::Logger::success(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_w(msg, ...) ::AshCore::Logger::warning(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_e(msg, ...) ::AshCore::Logger::error(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_c(msg, ...) ::AshCore::Logger::critical(msg ASHBORN_LOG_CTX(__VA_ARGS__))
+#define print_t(...) ((void)0)
+#define print_d(...) ((void)0)
+#define print_i(...) ::AshCore::Logger::info_fmt(__VA_ARGS__)
+#define print_s(...) ::AshCore::Logger::success_fmt(__VA_ARGS__)
+#define print_w(...) ::AshCore::Logger::warning_fmt(__VA_ARGS__)
+#define print_e(...) ::AshCore::Logger::error_fmt(__VA_ARGS__)
+#define print_c(...) ::AshCore::Logger::critical_fmt(__VA_ARGS__)
 
 // Distribution build - all macros compile to nothing
 #elif defined(ASHBORN_DIST)
-#define print_t(msg, ...) ((void)0)
-#define print_d(msg, ...) ((void)0)
-#define print_i(msg, ...) ((void)0)
-#define print_s(msg, ...) ((void)0)
-#define print_w(msg, ...) ((void)0)
-#define print_e(msg, ...) ((void)0)
-#define print_c(msg, ...) ((void)0)
+#define print_t(...) ((void)0)
+#define print_d(...) ((void)0)
+#define print_i(...) ((void)0)
+#define print_s(...) ((void)0)
+#define print_w(...) ((void)0)
+#define print_e(...) ((void)0)
+#define print_c(...) ((void)0)
 
 // Default to debug if nothing is defined
 #else
-#define print_t(msg, ...) ::AshCore::Logger::trace(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_d(msg, ...) ::AshCore::Logger::debug(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_i(msg, ...) ::AshCore::Logger::info(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_s(msg, ...) ::AshCore::Logger::success(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_w(msg, ...) ::AshCore::Logger::warning(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_e(msg, ...) ::AshCore::Logger::error(msg ASHBORN_LOG_CTX(__VA_ARGS__))
-#define print_c(msg, ...) ::AshCore::Logger::critical(msg ASHBORN_LOG_CTX(__VA_ARGS__))
+#define print_t(...) ::AshCore::Logger::trace_fmt(__VA_ARGS__)
+#define print_d(...) ::AshCore::Logger::debug_fmt(__VA_ARGS__)
+#define print_i(...) ::AshCore::Logger::info_fmt(__VA_ARGS__)
+#define print_s(...) ::AshCore::Logger::success_fmt(__VA_ARGS__)
+#define print_w(...) ::AshCore::Logger::warning_fmt(__VA_ARGS__)
+#define print_e(...) ::AshCore::Logger::error_fmt(__VA_ARGS__)
+#define print_c(...) ::AshCore::Logger::critical_fmt(__VA_ARGS__)
 #endif
 
 // Utility macros for common patterns

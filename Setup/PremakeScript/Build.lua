@@ -92,7 +92,7 @@ filter {}
 
 -- Global includes accessible to all projects
 IncludeDir = {}
-IncludeDir["vulkan"] = GetDependencyPath("glad/include")
+IncludeDir["glad"] = GetDependencyPath("glad/include")
 IncludeDir["glfw"] = GetDependencyPath("glfw/include")
 IncludeDir["glm"] = GetDependencyPath("glm/include")
 IncludeDir["entt"] = GetDependencyPath("entt/single_include")
@@ -108,6 +108,10 @@ LibraryDir["glfw"] = GetDependencyPath("glfw/src/glfw3")
 LibraryDir["imgui"] = GetDependencyPath("imgui/src/imgui")
 LibraryDir["vulkan"] = GetDependencyPath("glad/src/vulkan-1")
 
+-- files
+IncludeFiles = {}
+IncludeFiles["glad"] = GetDependencyPath("glad/src/glad.c")
+IncludeFiles["vulkan"] = GetDependencyPath("glad/src/vulkan.c")
 
 -- Groups for project organization    
 group "Engine"

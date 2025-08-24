@@ -4,17 +4,17 @@
 project "Game"
     location( _SCRIPT_DIR )
     targetdir "../../Build/%{cfg.buildcfg}"
-    kind "WindowedApp"  -- No console window
+    kind "ConsoleApp"
     language "C++"
     staticruntime "Off"
     
     files {
         "**.h",
-        "**.cpp",
+        "**.cpp"
         
         -- Resources
-        "**.rc",
-        "**.ico"
+        -- "**.rc",
+        -- "**.ico"
     }
     
     includedirs {
@@ -31,6 +31,7 @@ project "Game"
         
         -- Dependencies
         "%{IncludeDir.glm}",
+	"%{IncludeDir.glad}",
         "%{IncludeDir.entt}",
         "%{IncludeDir.imgui}"
     }

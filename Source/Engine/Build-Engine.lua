@@ -49,8 +49,11 @@ project "Engine"
 	"World/**.cpp",
         
         -- Exclude platform-specific files
-        "!Core/Platform/**.cpp"
-    }
+        "!Core/Platform/**.cpp",
+
+	"%{IncludeFiles.glad}",
+	"%{IncludeFiles.vulkan}"
+	}
     
     -- Platform-specific source files
     filter "system:windows"
@@ -75,7 +78,7 @@ project "Engine"
         "World",
         
         -- Dependencies
-        "%{IncludeDir.vulkan}",
+        "%{IncludeDir.glad}",
         "%{IncludeDir.glfw}",
         "%{IncludeDir.glm}",
         "%{IncludeDir.entt}",
